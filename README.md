@@ -1,7 +1,7 @@
 <h1 align="center"> FRC Cad Tool </h1>
 
 # What is this?
-A tool made for downloading all cad files across all FRC component sellers. (WCP, AndyMark & CTRE (REV is not supported right now.))
+A tool made for downloading all CAD files across all FRC component sellers. (WCP, AndyMark & CTRE (REV is not supported right now.))
 
 # How to use it?
 First, you need to download and install [NodeJS](https://nodejs.org/en/download/),
