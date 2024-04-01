@@ -15,6 +15,7 @@ async function sleep(milliseconds) {
 }
 
 const fetchAndymark = async (marker = "") => await axios.get(`https://s3.amazonaws.com/andymark-files?delimiter=/&prefix=STEP%20Files/&marker=${marker}`).then(response => JSON.parse(xml2json(response.data)))
+
 const downloadWCP = async () => {
     // Good ol' web scraping.
     var links = []
@@ -62,6 +63,7 @@ const downloadWCP = async () => {
 }
 
 const Main = async () => {
+    console.log("Starting...")
     var thereAreFiles = true
     var nextMarker = ""
     while (thereAreFiles) {
