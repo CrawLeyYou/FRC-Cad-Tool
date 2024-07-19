@@ -2,17 +2,22 @@
   "name": "frc-cad-tool",
   "version": "1.0.0",
   "description": "A tool made for downloading all cad files across all FRC component sellers.",
-  "main": "./src/index.js",
+  "main": "./src/index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./src/index.js"
+    "start": "node .",
+    "electron": "electron .",
+    "electron-dev": "electron . dev"
   },
   "author": "CrawLeyYou",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.8",
     "download": "^8.0.0",
+    "electron": "^29.3.0",
+    "express": "^4.19.2",
     "jsdom": "^24.0.0",
+    "sqlite3": "^5.1.7",
     "xml-js": "^1.6.11"
   }
 }

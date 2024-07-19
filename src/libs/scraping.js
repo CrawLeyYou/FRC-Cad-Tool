@@ -1,13 +1,11 @@
 const axios = require('axios');
 const { xml2json } = require('xml-js')
-const download = require('download')
-
-let errorLinks = [] // I'll use this later.
-var andymarkArr = []
+const database = require('./database.js')
 
 const fetchAndymark = async (marker = "") => await axios.get(`https://s3.amazonaws.com/andymark-files?delimiter=/&prefix=STEP%20Files/&marker=${marker}`).then(response => JSON.parse(xml2json(response.data)))
 
-const Main = async () => {
+const AndyMark = async () => {
+    var andymarkArr = []
     var thereAreFiles = true
     var nextMarker = ""
     while (thereAreFiles) {
@@ -24,13 +22,15 @@ const Main = async () => {
         })
     }
     andymarkArr.forEach(async (element, i) => {
-        download(`https://s3.amazonaws.com/andymark-files/${encodeURIComponent(element)}`, "cadFiles/AndyMark", { filename: element.split("STEP Files/")[1] }).then(() => {
-            process.send(`Downloaded ${element}`)
-        }).catch((err) => {
-            process.send("An error occurred while downloading the file, please try again. " + element)
-            errorLinks.push(`https://s3.amazonaws.com/andymark-files/${encodeURIComponent(element)}`)
-        })
+        if (element.split("STEP Files/")[1] !== "")
+            if (element.split("STEP Files/")[1].includes("'"))  {
+                database.addFile("Fetched", element.split("STEP Files/")[1].replace("'", "''"), `https://s3.amazonaws.com/andymark-files/${encodeURIComponent(element)}`.replace("'", "''"), "NULL", Date.now(), "NULL", "AndyMark", element.split("STEP Files/")[1].replace("'", "''"), "NULL", "NULL")
+            }
+            else {
+                database.addFile("Fetched", element.split("STEP Files/")[1], `https://s3.amazonaws.com/andymark-files/${encodeURIComponent(element)}`, "NULL", Date.now(), "NULL", "AndyMark", element.split("STEP Files/")[1], "NULL", "NULL")
+            }
     })
+    return true
 }
 
-Main()
+module.exports = { AndyMark }
