@@ -1,10 +1,11 @@
 import fs from "node:fs"
 import cprocess from "node:child_process"
 import path from "node:path"
-import electron from "./libs/electron.js"
+import electron from "./lib/electron.js"
 import express from "express"
 import sqlite3 from "sqlite3"
-import test from "./libs/scraping.js"
+import test from "./lib/scraping.js"
+import next from "next"
 
 const db = new sqlite3.cached.Database(process.cwd() + '/localdb.db')
 
@@ -21,8 +22,9 @@ defaultConfig["length"] = defaultConfig.columnData.size
 let activeProcesses = []
 const processes = path.join(process.cwd(), 'processes');
 const commandFolders = fs.readdirSync(processes);
-var defaultPath = path.join(process.cwd(), 'electron');
-var app = express()
+var defaultPath = path.join(process.cwd());
+const app = express()
+const nextApp = next({ dev: (process.argv[2] === "dev") ? true : false })
 
 const fork = (cwd, file) => {
     var process = cprocess.fork(cwd + "/processes/" + file)
@@ -74,7 +76,7 @@ const databaseIntegrityCheck = async () => new Promise(async (resolve, reject) =
             defaultConfig.columnData.forEach((value, key) => {
                 if (columns.has(key)) {
                     if (columns.get(key) !== value) {
-                        corruptedList.push(key)
+                +        corruptedList.push(key)
                     }
                 } else {
                     missingList.push(key)
@@ -120,42 +122,51 @@ const databaseRunCheck = async () => {
     })
 }
 
-app.listen(9409, async () => {
-    console.log("Listening on port 9409")
-    electron.app.whenReady().then(electron.createWindow).catch((err) => {
-        electron.createCriticalError("An error occurred while creating the window.", err.message)
+nextApp.prepare().then(() => {
+
+    app.listen(9409, async () => {
+        console.log("Listening on port 9409")
+        electron.app.whenReady().then(electron.createWindow).catch((err) => {
+            electron.createCriticalError("An error occurred while creating the window.", err.message)
+        })
+        await databaseRunCheck()
     })
-    await databaseRunCheck()
-})
 
-app.get("/", (req, res) => {
-    res.sendFile(defaultPath + '/index.html')
-})
+    app.get("/", (req, res) => {
+        return nextApp.render(req, res, "/")
+    })
 
-app.get("/download", (req, res) => {
-    var downloadSpecification = req.body.specs
-    install(downloadSpecification.install)
-})
+    app.get("/download", (req, res) => {
+        var downloadSpecification = req.body.specs
+        install(downloadSpecification.install)
+    })
 
-app.get("/kill", (req, res) => {
-    if (req.body.spec.kill === "all" || commandFolders.includes(req.body.spec.kill + ".js")) {
-        if (req.body.spec.kill !== "all") {
-            activeProcesses.filter((data) => data.file === req.body.spec.kill + ".js")[0].proc.kill()
-            activeProcesses = activeProcesses.filter((data) => !(data.file === req.body.spec.kill + ".js"))
+    app.get("/kill", (req, res) => {
+        if (req.body.spec.kill === "all" || commandFolders.includes(req.body.spec.kill + ".js")) {
+            if (req.body.spec.kill !== "all") {
+                activeProcesses.filter((data) => data.file === req.body.spec.kill + ".js")[0].proc.kill()
+                activeProcesses = activeProcesses.filter((data) => !(data.file === req.body.spec.kill + ".js"))
+            }
+            else {
+                activeProcesses.forEach((data) => data.proc.kill())
+                activeProcesses = []
+            }
         }
-        else {
-            activeProcesses.forEach((data) => data.proc.kill())
-            activeProcesses = []
-        }
-    }
-})
+    })
 
-app.get("/status", (req, res) => {
-    console.log(activeProcesses)
-})
+    app.get("/_next/static/*", (req, res) => {
+        res.sendFile(defaultPath + "/.next/static/" + req.url.split("/_next/static/")[1].split("?")[0])
+    })
 
-app.get("/test", async (req, res) => {
-    test.REV()
-    test.WCP()
-    test.AndyMark()
+    app.get("/status", (req, res) => {
+        console.log(activeProcesses)
+    })
+
+    app.get("/test", async (req, res) => {
+        test.REV()
+        test.WCP()
+        test.AndyMark()
+    })
+}).catch((err) => {
+    electron.createCriticalError("An error occurred while starting the server.", err.message)
 })
