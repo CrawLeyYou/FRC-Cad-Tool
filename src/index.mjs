@@ -9,11 +9,11 @@ import test from "./libs/scraping.js"
 const db = new sqlite3.cached.Database(process.cwd() + '/localdb.db')
 
 let defaultConfig = {
-    "sql": "name TEXT,url TEXT,md5 TEXT,timestamp INTEGER,successful BOOLEAN,seller TEXT,filename TEXT,size INTEGER,status TEXT,filepath TEXT",
+    "sql": "name TEXT PRIMARY KEY,url TEXT,md5 TEXT,timestamp INTEGER,successful BOOLEAN,seller TEXT,filename TEXT,size INTEGER,status TEXT,filepath TEXT",
     columnData: new Map()
 }
 
-defaultConfig.sql.split(",").forEach((data) => {
+defaultConfig.sql.replace("name TEXT PRIMARY KEY", "name TEXT").split(",").forEach((data) => {
     defaultConfig.columnData.set(data.split(" ")[0], data.split(" ")[1])
 })
 defaultConfig["length"] = defaultConfig.columnData.size
@@ -154,6 +154,8 @@ app.get("/status", (req, res) => {
     console.log(activeProcesses)
 })
 
-app.get("/test", (req, res) => {
-test.AndyMark()
+app.get("/test", async (req, res) => {
+    test.REV()
+    test.WCP()
+    test.AndyMark()
 })

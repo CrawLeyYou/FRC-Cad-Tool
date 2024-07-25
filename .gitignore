@@ -132,3 +132,4 @@ dist
 # File save folder for the project
 cadFiles/
 .idea
+localdb.db
