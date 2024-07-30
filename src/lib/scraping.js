@@ -2,13 +2,14 @@ const axios = require('axios');
 const { xml2json } = require('xml-js')
 const database = require('./database.js')
 const { JSDOM } = require('jsdom')
-
 const fetchAndymark = async (marker = "") => await axios.get(`https://s3.amazonaws.com/andymark-files?delimiter=/&prefix=STEP%20Files/&marker=${marker}`).then(response => JSON.parse(xml2json(response.data)))
+const customEvents = require('./customEvents.js')
 
-const AndyMark = async () => {
+const AndyMark = async (clientId) => {
     var andymarkArr = []
     var thereAreFiles = true
     var nextMarker = ""
+    let x = 0
     while (thereAreFiles) {
         thereAreFiles = false
         var data = await fetchAndymark(nextMarker)
@@ -22,6 +23,7 @@ const AndyMark = async () => {
             }
         })
     }
+    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "push" , clientId: clientId, method: "andymark", maxAmount: andymarkArr.length, currentAmount: x}))
     andymarkArr.forEach(async (element, i) => {
         if (element.split("STEP Files/")[1] !== "")
             if (element.split("STEP Files/")[1].includes("'")) {
@@ -30,17 +32,21 @@ const AndyMark = async () => {
             else {
                 database.addFile("Fetched", element.split("STEP Files/")[1], `https://s3.amazonaws.com/andymark-files/${encodeURIComponent(element)}`, "NULL", Date.now(), "NULL", "AndyMark", element.split("STEP Files/")[1], "NULL", "NULL")
             }
+            x++
+            customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "update" , clientId: clientId, currentAmount: x}))
     })
     return true
 }
 
-const WCP = async () => {
+const WCP = async (clientId) => {
     // Good ol' web scraping. // This is a bit of a mess, but it works. 
     var links = []
+    let x = 0
     const dom = (await JSDOM.fromURL("https://wcproducts.com/collections/viewall")).window.document
     dom.getElementById("shopify-section-template--16753656627412__main").querySelector("div.container-indent").querySelector("div.container").querySelector("div.row").querySelector("div.col-md-12").querySelector("div.content-indent").querySelector("div.tt-product-listing").querySelectorAll("div.col-6").forEach(element => {
         links.push(element.querySelector("div.product-parent").querySelector("div.tt-description").querySelector("h2.tt-title").querySelector("a").href)
     })
+    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "push" , clientId: clientId, method: "WCP", maxAmount: links.length, currentAmount: x}))
     links.forEach(async (link) => {
         const internalDom = (await JSDOM.fromURL(link)).window.document
         if (internalDom.getElementById("tt-tab-03")?.innerHTML !== undefined) {
@@ -62,15 +68,18 @@ const WCP = async () => {
                 })
             }
         }
+        x++
+        customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "update" , clientId: clientId, currentAmount: x}))
     })
     return true
 }
 
-const REV = async () => {
+const REV = async (clientId) => {
     var links = []
     let nextIs = true
     var link = "https://www.revrobotics.com/ion-system/?limit=1000&page="
     let i = 1
+    let x = 0
     while (nextIs) {
         const dom = (await JSDOM.fromURL(link + i)).window.document
         dom.querySelectorAll("li.productCard--grid").forEach((element) => {
@@ -82,6 +91,7 @@ const REV = async () => {
             nextIs = false
         }
     }
+    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "push" , clientId: clientId, method: "REV", maxAmount: links.length, currentAmount: x}))
     links.forEach(async (link) => {
         const dom = (await JSDOM.fromURL(link)).window.document
         switch (dom.getElementById("SKU-STP")?.innerHTML.toLowerCase()) {
@@ -132,6 +142,8 @@ const REV = async () => {
                     })
                 })
         }
+        x++
+        customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "update" , clientId: clientId, currentAmount: x}))
     })
 }
 

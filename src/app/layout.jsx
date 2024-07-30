@@ -15,7 +15,7 @@ export default function RootLayout({ children }) {
             <title>FRC CAD Tools</title>
         </head>
       <body className={cn(
-          "min-h-screen bg-background font-sans antialiased",
+          "min-h-screen bg-background bg-dark font-sans",
           fontSans.variable
         )}>{children}</body>
     </html>

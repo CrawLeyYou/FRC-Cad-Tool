@@ -5,14 +5,18 @@
   "main": "./src/index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node .",
-    "electron": "next build && electron .",
-    "electron-dev": "electron . dev",
+    "dev": "nodemon --ignore app/ --exec npx electron . dev",
+    "prod": "next build && electron .",
     "build": "next build"
   },
   "author": "CrawLeyYou",
   "license": "MIT",
   "dependencies": {
+    "@radix-ui/react-alert-dialog": "^1.1.1",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-progress": "^1.1.0",
+    "@radix-ui/react-select": "^2.1.1",
+    "@radix-ui/react-slot": "^1.1.0",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -24,9 +28,12 @@
     "next": "14.2.5",
     "react": "^18",
     "react-dom": "^18",
+    "react-router-dom": "^6.25.1",
+    "react-use-websocket": "^4.0.0",
     "sqlite3": "^5.1.7",
     "tailwind-merge": "^2.4.0",
     "tailwindcss-animate": "^1.0.7",
+    "ws": "^8.18.0",
     "xml-js": "^1.6.11"
   },
   "devDependencies": {

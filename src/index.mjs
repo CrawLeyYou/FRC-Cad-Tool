@@ -4,10 +4,11 @@ import path from "node:path"
 import electron from "./lib/electron.js"
 import express from "express"
 import sqlite3 from "sqlite3"
-import test from "./lib/scraping.js"
+import scrapeLib from "./lib/scraping.js"
 import next from "next"
-
+import { WebSocketServer } from "ws"
 const db = new sqlite3.cached.Database(process.cwd() + '/localdb.db')
+import customEvents from "./lib/customEvents.js"
 
 let defaultConfig = {
     "sql": "name TEXT PRIMARY KEY,url TEXT,md5 TEXT,timestamp INTEGER,successful BOOLEAN,seller TEXT,filename TEXT,size INTEGER,status TEXT,filepath TEXT",
@@ -25,6 +26,7 @@ const commandFolders = fs.readdirSync(processes);
 var defaultPath = path.join(process.cwd());
 const app = express()
 const nextApp = next({ dev: (process.argv[2] === "dev") ? true : false })
+const getHandler = nextApp.getRequestHandler()
 
 const fork = (cwd, file) => {
     var process = cprocess.fork(cwd + "/processes/" + file)
@@ -76,7 +78,7 @@ const databaseIntegrityCheck = async () => new Promise(async (resolve, reject) =
             defaultConfig.columnData.forEach((value, key) => {
                 if (columns.has(key)) {
                     if (columns.get(key) !== value) {
-                +        corruptedList.push(key)
+                        +        corruptedList.push(key)
                     }
                 } else {
                     missingList.push(key)
@@ -122,14 +124,34 @@ const databaseRunCheck = async () => {
     })
 }
 
-nextApp.prepare().then(() => {
-
+nextApp.prepare().then(async () => {
     app.listen(9409, async () => {
-        console.log("Listening on port 9409")
-        electron.app.whenReady().then(electron.createWindow).catch((err) => {
-            electron.createCriticalError("An error occurred while creating the window.", err.message)
+        console.log("HTTP Listening on port 9409")
+        wss.on("listening", async () => {
+            console.log("WebSocket Listening on port 9410")
+            electron.app.whenReady().then(electron.createWindow).catch((err) => {
+                electron.createCriticalError("An error occurred while creating the window.", err.message)
+            })
+            await databaseRunCheck()
         })
-        await databaseRunCheck()
+    })
+
+    const wss = new WebSocketServer({ port: 9410 })
+    let client;
+    
+    wss.on('connection', (wsc) => {
+        client = wsc
+        wsc.on('message', (msg) => {
+            scrapeLib.REV("1")
+        })
+    })
+
+    wss.on("close", (wsc) => {
+
+    })
+
+    customEvents.scrapeEvent.on("scrape", (data) => {
+        client.send(JSON.stringify(data))
     })
 
     app.get("/", (req, res) => {
@@ -163,10 +185,15 @@ nextApp.prepare().then(() => {
     })
 
     app.get("/test", async (req, res) => {
-        test.REV()
-        test.WCP()
-        test.AndyMark()
+        //scrapeLib.REV()
+        //scrapeLib.WCP()
+        //scrapeLib.AndyMark()
     })
+
+    app.get('*', (req, res) => {
+        return getHandler(req, res)
+    })
+
 }).catch((err) => {
     electron.createCriticalError("An error occurred while starting the server.", err.message)
 })
