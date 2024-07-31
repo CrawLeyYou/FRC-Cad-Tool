@@ -5,7 +5,7 @@ const { JSDOM } = require('jsdom')
 const fetchAndymark = async (marker = "") => await axios.get(`https://s3.amazonaws.com/andymark-files?delimiter=/&prefix=STEP%20Files/&marker=${marker}`).then(response => JSON.parse(xml2json(response.data)))
 const customEvents = require('./customEvents.js')
 
-const AndyMark = async (clientId) => {
+const AndyMark = async () => {
     var andymarkArr = []
     var thereAreFiles = true
     var nextMarker = ""
@@ -23,7 +23,7 @@ const AndyMark = async (clientId) => {
             }
         })
     }
-    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "push" , clientId: clientId, method: "andymark", maxAmount: andymarkArr.length, currentAmount: x}))
+    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ type: "push", method: "andymark", maxAmount: andymarkArr.length, currentAmount: x}))
     andymarkArr.forEach(async (element, i) => {
         if (element.split("STEP Files/")[1] !== "")
             if (element.split("STEP Files/")[1].includes("'")) {
@@ -33,12 +33,13 @@ const AndyMark = async (clientId) => {
                 database.addFile("Fetched", element.split("STEP Files/")[1], `https://s3.amazonaws.com/andymark-files/${encodeURIComponent(element)}`, "NULL", Date.now(), "NULL", "AndyMark", element.split("STEP Files/")[1], "NULL", "NULL")
             }
             x++
-            customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "update" , clientId: clientId, currentAmount: x}))
+            customEvents.scrapeEvent.emit("scrape", JSON.stringify({ type: "update",  currentAmount: x}))
     })
+    database.updateStatus("andymark")
     return true
 }
 
-const WCP = async (clientId) => {
+const WCP = async () => {
     // Good ol' web scraping. // This is a bit of a mess, but it works. 
     var links = []
     let x = 0
@@ -46,7 +47,7 @@ const WCP = async (clientId) => {
     dom.getElementById("shopify-section-template--16753656627412__main").querySelector("div.container-indent").querySelector("div.container").querySelector("div.row").querySelector("div.col-md-12").querySelector("div.content-indent").querySelector("div.tt-product-listing").querySelectorAll("div.col-6").forEach(element => {
         links.push(element.querySelector("div.product-parent").querySelector("div.tt-description").querySelector("h2.tt-title").querySelector("a").href)
     })
-    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "push" , clientId: clientId, method: "WCP", maxAmount: links.length, currentAmount: x}))
+    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ type: "push", method: "WCP", maxAmount: links.length, currentAmount: x}))
     links.forEach(async (link) => {
         const internalDom = (await JSDOM.fromURL(link)).window.document
         if (internalDom.getElementById("tt-tab-03")?.innerHTML !== undefined) {
@@ -69,12 +70,13 @@ const WCP = async (clientId) => {
             }
         }
         x++
-        customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "update" , clientId: clientId, currentAmount: x}))
+        customEvents.scrapeEvent.emit("scrape", JSON.stringify({ type: "update", currentAmount: x}))
     })
+    database.updateStatus("wcp")
     return true
 }
 
-const REV = async (clientId) => {
+const REV = async () => {
     var links = []
     let nextIs = true
     var link = "https://www.revrobotics.com/ion-system/?limit=1000&page="
@@ -91,7 +93,7 @@ const REV = async (clientId) => {
             nextIs = false
         }
     }
-    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "push" , clientId: clientId, method: "REV", maxAmount: links.length, currentAmount: x}))
+    customEvents.scrapeEvent.emit("scrape", JSON.stringify({ type: "push", method: "REV", maxAmount: links.length, currentAmount: x}))
     links.forEach(async (link) => {
         const dom = (await JSDOM.fromURL(link)).window.document
         switch (dom.getElementById("SKU-STP")?.innerHTML.toLowerCase()) {
@@ -143,10 +145,17 @@ const REV = async (clientId) => {
                 })
         }
         x++
-        customEvents.scrapeEvent.emit("scrape", JSON.stringify({ state: "update" , clientId: clientId, currentAmount: x}))
+        customEvents.scrapeEvent.emit("scrape", JSON.stringify({ type: "update", currentAmount: x}))
     })
+    database.updateStatus("rev")
 }
+
+const availableScrapingMethods = [
+    { name: "AndyMark", func: AndyMark, id: "andymark" },
+    { name: "WestCoast Products", func: WCP, id: "wcp" },
+    { name: "REV Robotics", func: REV, id: "rev" }
+]
 
 // Implement all scraping methods in processes folder to here (just to add information to the database) implement download calls in another file
 
-module.exports = { AndyMark, WCP, REV }
+module.exports = { AndyMark, WCP, REV, availableScrapingMethods }

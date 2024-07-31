@@ -1,4 +1,4 @@
-"use client"
+'use client'
 import * as React from "react"
 import { useRouter } from 'next/navigation'
 import {
@@ -26,11 +26,13 @@ import {
     SelectItem,
     SelectTrigger,
     SelectValue,
+    SelectSeparator
 } from "@/components/ui/select"
 import useWebSocket from 'react-use-websocket';
 import { EventEmitter } from "../lib/utils"
+import axios from "axios"
 
-export default function Home() {
+export default function Page() {
     let socketEvent = new EventEmitter()
     const { sendMessage } = useWebSocket("ws://localhost:9410", {
         onMessage: (msg) => {
@@ -41,7 +43,9 @@ export default function Home() {
     const [maxValue, setMaxValue] = React.useState(200)
     const [open, dialogSetOpen] = React.useState(false);
     const router = useRouter()
+    const [cancelRedirect, setCancelRedirect] = React.useState(false)
     const [selection, setSelection] = React.useState(null)
+    const [optionsArr, setOptionsArr] = React.useState([])
 
     const redirectDashboard = () => {
         dialogSetOpen(false)
@@ -50,29 +54,37 @@ export default function Home() {
     }
 
     socketEvent.on("socketMessage", async (msg) => {
-        var data = JSON.parse(JSON.parse(msg))
-        switch (data.state) {
+        var data = JSON.parse(msg)
+        switch (data.type) {
             case "push":
                 setMaxValue(data.maxAmount)
                 break;
             case "update":
                 setProgress(data.currentAmount)
-                if (maxValue == data.currentAmount) {
+                if (maxValue == data.currentAmount && !cancelRedirect) {
                     redirectDashboard()
                 }
-                break
+            break
+            case "redirect": 
+                redirectDashboard()
+            break
             default:
                 break;
         }
     })
 
+    React.useEffect(() => {
+        axios.get("/options").then((res) => setOptionsArr(res.data.options))
+    }, [])
+
     const fetchState = () => {
         sendMessage(JSON.stringify({ type: "fetch", selection: selection }))
     }
-        
+
     const cancelFetch = () => {
-        sendMessage(JSON.stringify({ type: "cancel" }))
         dialogSetOpen(false)
+        setCancelRedirect(true)
+        setProgress(0)
     }
 
     return (
@@ -91,10 +103,11 @@ export default function Home() {
                                         <SelectTrigger id="seller">
                                             <SelectValue placeholder="Select" />
                                         </SelectTrigger>
-                                        <SelectContent id="options" position="popper">
-                                            <SelectItem value="andymark">AndyMark</SelectItem>
-                                            <SelectItem value="rev">REV Robotics</SelectItem>
-                                            <SelectItem value="wcp">WestCoast Products</SelectItem>
+                                        <SelectContent id="options" position="popper" key="31">
+                                            {optionsArr.map((data, i) => {
+                                                return <SelectItem key={i} value={data.id}>{data.name}</SelectItem>
+                                            })}
+                                            <SelectSeparator></SelectSeparator>
                                             <SelectItem value="serverdb">Offline DB</SelectItem>
                                             <SelectItem value="offline">Select Folder</SelectItem>
                                         </SelectContent>
@@ -111,7 +124,7 @@ export default function Home() {
                             <AlertDialogContent>
                                 <AlertDialogHeader>
                                     <AlertDialogTitle>Loading...</AlertDialogTitle>
-                                    <Progress max={maxValue} value={progress} className="w-[60%]"/>
+                                    <Progress max={maxValue} value={progress} className="w-[60%]" />
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel onClick={cancelFetch}>Cancel</AlertDialogCancel>

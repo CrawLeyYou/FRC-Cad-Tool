@@ -3,15 +3,15 @@ import cprocess from "node:child_process"
 import path from "node:path"
 import electron from "./lib/electron.js"
 import express from "express"
-import sqlite3 from "sqlite3"
 import scrapeLib from "./lib/scraping.js"
 import next from "next"
 import { WebSocketServer } from "ws"
-const db = new sqlite3.cached.Database(process.cwd() + '/localdb.db')
+import { db } from "./lib/database.js"
 import customEvents from "./lib/customEvents.js"
 
 let defaultConfig = {
-    "sql": "name TEXT PRIMARY KEY,url TEXT,md5 TEXT,timestamp INTEGER,successful BOOLEAN,seller TEXT,filename TEXT,size INTEGER,status TEXT,filepath TEXT",
+    sql: "name TEXT PRIMARY KEY,url TEXT,md5 TEXT,timestamp INTEGER,successful BOOLEAN,seller TEXT,filename TEXT,size INTEGER,status TEXT,filepath TEXT",
+    statusSQL: "id TEXT PRIMARY KEY, status BOOLEAN",
     columnData: new Map()
 }
 
@@ -124,6 +124,13 @@ const databaseRunCheck = async () => {
     })
 }
 
+const createStatus = async () => {
+    await db.run(`CREATE TABLE IF NOT EXISTS status(${defaultConfig.statusSQL})`)
+    scrapeLib.availableScrapingMethods.forEach(async (data) => {
+        await db.run(`INSERT OR IGNORE INTO status (id, status) VALUES ('${data.id}', FALSE)`)
+    })
+}
+
 nextApp.prepare().then(async () => {
     app.listen(9409, async () => {
         console.log("HTTP Listening on port 9409")
@@ -133,25 +140,42 @@ nextApp.prepare().then(async () => {
                 electron.createCriticalError("An error occurred while creating the window.", err.message)
             })
             await databaseRunCheck()
+            await createStatus()
         })
     })
 
     const wss = new WebSocketServer({ port: 9410 })
-    let client;
-    
+    let client
+
     wss.on('connection', (wsc) => {
         client = wsc
         wsc.on('message', (msg) => {
-            scrapeLib.REV("1")
+            var message = (JSON.parse(msg.toString()))
+            switch (message.type) {
+                case "fetch":
+                    db.get(`SELECT * FROM status WHERE id = '${message.selection}'`, async (err, data) => {
+                        if (data.status === 0) {
+                            scrapeLib.availableScrapingMethods.map((methods) => {
+                                if (methods.id === message.selection) {
+                                    methods.func()
+                                }
+                            })
+                        }
+                        else if (data.status === 1) {
+                            client.send(JSON.stringify({ type: "redirect" }))
+                        }
+                        else {
+                            electron.createCriticalError("Fetch error", "Unknown error happened please restart the application. If the problem persists, please contact the developer.")
+                        }
+                    })
+                default:
+                    break;
+            }
         })
     })
 
-    wss.on("close", (wsc) => {
-
-    })
-
     customEvents.scrapeEvent.on("scrape", (data) => {
-        client.send(JSON.stringify(data))
+        client.send(data)
     })
 
     app.get("/", (req, res) => {
@@ -161,6 +185,10 @@ nextApp.prepare().then(async () => {
     app.get("/download", (req, res) => {
         var downloadSpecification = req.body.specs
         install(downloadSpecification.install)
+    })
+
+    app.get("/options", (req, res) => {
+        res.status(200).json({ options: scrapeLib.availableScrapingMethods })
     })
 
     app.get("/kill", (req, res) => {
