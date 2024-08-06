@@ -92,7 +92,7 @@ export default function Page() {
             <div className="flex h-screen">
                 <Card className="m-auto bg-white border-gray-400 w-[350px]">
                     <CardHeader>
-                        <CardTitle className="flex text-black justify-center">FRC Cad Tools</CardTitle>
+                        <CardTitle className="flex text-black justify-center">FRC CAD Tools</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form>

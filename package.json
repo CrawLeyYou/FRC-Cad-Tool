@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --ignore app/ --exec npx electron . dev",
     "prod": "next build && electron .",
-    "build": "next build"
+    "build": "next build",
+    "lint": "next lint"
   },
   "author": "CrawLeyYou",
   "license": "MIT",
@@ -20,6 +21,7 @@
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "discord-rpc": "^4.0.1",
     "download": "^8.0.0",
     "electron": "^31.3.0",
     "express": "^4.19.2",

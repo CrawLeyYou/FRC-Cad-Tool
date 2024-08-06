@@ -8,6 +8,9 @@ import next from "next"
 import { WebSocketServer } from "ws"
 import { db } from "./lib/database.js"
 import customEvents from "./lib/customEvents.js"
+import RPC from "./lib/rpc.mjs"
+
+new RPC((process.argv[2] === "dev") ? "Dev" : "Production")
 
 let defaultConfig = {
     sql: "name TEXT PRIMARY KEY,url TEXT,md5 TEXT,timestamp INTEGER,successful BOOLEAN,seller TEXT,filename TEXT,size INTEGER,status TEXT,filepath TEXT",
