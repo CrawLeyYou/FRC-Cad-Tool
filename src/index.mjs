@@ -1,12 +1,10 @@
-import fs from "node:fs"
-import cprocess from "node:child_process"
 import path from "node:path"
 import electron from "./lib/electron.js"
 import express from "express"
 import scrapeLib from "./lib/scraping.js"
 import next from "next"
 import { WebSocketServer } from "ws"
-import { db } from "./lib/database.js"
+import { db, getComponents } from "./lib/database.js"
 import customEvents from "./lib/customEvents.js"
 import RPC from "./lib/rpc.mjs"
 
@@ -24,45 +22,10 @@ defaultConfig.sql.replace("name TEXT PRIMARY KEY", "name TEXT").split(",").forEa
 defaultConfig["length"] = defaultConfig.columnData.size
 
 let activeProcesses = []
-const processes = path.join(process.cwd(), 'processes');
-const commandFolders = fs.readdirSync(processes);
 var defaultPath = path.join(process.cwd());
 const app = express()
 const nextApp = next({ dev: (process.argv[2] === "dev") ? true : false })
 const getHandler = nextApp.getRequestHandler()
-
-const fork = (cwd, file) => {
-    var process = cprocess.fork(cwd + "/processes/" + file)
-    activeProcesses.push({ proc: process, file: file })
-    process.on("message", (msg) => {
-        console.log(msg)
-    })
-    process.on("exit", () => {
-        activeProcesses = activeProcesses.filter((data) => !(data.proc.pid === process.pid))
-    })
-}
-
-const install = async (spec) => {
-    console.log("Starting...")
-    switch (spec) {
-        case "all":
-            for (const folder of commandFolders) {
-                fork(process.cwd(), folder)
-            }
-            break;
-        case "ctre":
-            fork(process.cwd(), "ctre.js")
-            break;
-        case "andymark":
-            fork(process.cwd(), "andymark.js")
-            break;
-        case "wcp":
-            fork(process.cwd(), "wcp.js")
-            break;
-        default:
-            return "Invalid Specification."
-    }
-}
 
 app.use(express.json());
 app.use(express.urlencoded({
@@ -128,9 +91,10 @@ const databaseRunCheck = async () => {
 }
 
 const createStatus = async () => {
-    await db.run(`CREATE TABLE IF NOT EXISTS status(${defaultConfig.statusSQL})`)
-    scrapeLib.availableScrapingMethods.forEach(async (data) => {
-        await db.run(`INSERT OR IGNORE INTO status (id, status) VALUES ('${data.id}', FALSE)`)
+    db.get(`CREATE TABLE IF NOT EXISTS status(${defaultConfig.statusSQL})`, () => {
+        scrapeLib.availableScrapingMethods.forEach(async (data) => {
+            db.run(`INSERT OR IGNORE INTO status (id, status) VALUES ('${data.id}', FALSE)`)
+        })
     })
 }
 
@@ -187,7 +151,6 @@ nextApp.prepare().then(async () => {
 
     app.get("/download", (req, res) => {
         var downloadSpecification = req.body.specs
-        install(downloadSpecification.install)
     })
 
     app.get("/options", (req, res) => {
@@ -216,9 +179,7 @@ nextApp.prepare().then(async () => {
     })
 
     app.get("/test", async (req, res) => {
-        //scrapeLib.REV()
-        //scrapeLib.WCP()
-        //scrapeLib.AndyMark()
+        res.jsonp((await getComponents("AndyMark")).map((data) => { data.name = data.name.match(/^[^.]*/g)[0]; return data }))
     })
 
     app.get('*', (req, res) => {
